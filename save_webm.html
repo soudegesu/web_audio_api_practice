@@ -1,0 +1,63 @@
+<html>
+  <head>
+    <title>generate webm file</title>
+  </head>
+  <body>
+    <button onclick="onClickStart();">Record</button>
+    <button onclick="onClickStop();">Stop</button>
+    <a id="dl">Download</a>
+    <script>
+      var recorder = undefined;
+      var videoStream = undefined;
+
+      function onSuccess(stream) {
+        videoStream = stream;
+        recorder = new MediaRecorder(stream, {
+          mimeType: 'video/webm;codecs=vp8',
+          audioBitsPerSecond: 16 * 1000
+        });
+        var chunks = [];
+        recorder.addEventListener('dataavailable', function(ele) {
+          if (ele.data.size > 0) {
+            chunks.push(ele.data);
+          }
+        });
+        recorder.addEventListener('stop', function() {
+          var obj = new Blob(chunks);
+          var dl = document.querySelector("#dl");
+          dl.href = URL.createObjectURL(new Blob(chunks));
+          dl.download = 'webm_test.webm';
+        });
+        console.log('Start recorder');
+        recorder.start();
+      }
+
+
+      function onClickStart() {
+        navigator.mediaDevices.getUserMedia({
+          audio: true,
+          video: true
+        })
+        .then(onSuccess)
+        .catch((e) => {
+          console.log(e);
+        });
+      }
+
+      function onClickStop() {
+        if (recorder) {
+          console.log('Stop recorder');
+          recorder.stop();
+        }
+        if (videoStream) {
+          videoStream.getVideoTracks().forEach((track) => {
+            track.stop();
+          });
+          videoStream.getAudioTracks().forEach((track) => {
+            track.stop();
+          });
+        }
+      }
+    </script>
+  </body>
+</html>
