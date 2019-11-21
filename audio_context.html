@@ -1,0 +1,40 @@
+<html>
+  <head></head>
+  <body>
+    <button onclick="onclickRecord()">Record</button>
+    <button onclick="play()">Stop & Play</button>
+    <audio></audio>
+
+    <script>
+      const HIGHEST_FREQUENCY = 1500;
+      const LOWEST_FREQUENCY = 125;
+      let audioStream = undefined;
+      let audioBufferSource = undefined;
+
+      function onclickRecord(e) {
+        audioStream = undefined;
+        navigator.mediaDevices.getUserMedia({audio: true}).then((stream) => {
+          audioStream = stream;
+          const audioContext = new AudioContext();
+          const bandPassFilter = audioContext.createBiquadFilter();
+          bandPassFilter.type = 'bandpass';
+          const bandPassCenterFrequency = (HIGHEST_FREQUENCY + LOWEST_FREQUENCY) / 2;
+          bandPassFilter.value = bandPassCenterFrequency;
+          bandPassFilter.Q = HIGHEST_FREQUENCY - bandPassCenterFrequency;
+
+          const mediaStreamSource = audioContext.createMediaStreamSource(audioStream);
+          mediaStreamSource.connect(bandPassFilter);
+
+          bandPassFilter.connect(audioContext.destination);
+
+        });
+      }
+
+      function play() {
+        const audio = document.querySelector('audio');
+        audio.srcObject = audioStream;
+        audio.play();
+      }
+    </script>
+  </body>
+</html>
