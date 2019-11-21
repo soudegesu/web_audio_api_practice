@@ -6,6 +6,7 @@ This repository includes some [Web Audio API](https://developer.mozilla.org/en-U
 
 I checked in the following environment.
 
+* Mac OSX Mojave
 * Google Chrome (64bit)
   * `78.0.3904.97`
 
