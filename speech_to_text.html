@@ -1,0 +1,64 @@
+<html>
+  <head></head>
+  <body>
+
+    <script>
+      SpeechRecognition = webkitSpeechRecognition || SpeechRecognition;
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'ja-JP';
+      recognition.continuous = true;
+      recognition.interimResults = true;
+    
+      recognition.onaudiostart = (e) => {
+        console.log('onaudiostart');
+        console.log(e);
+      }
+
+      recognition.onaudioend = (e) => {
+        console.log('onaudioend');
+        console.log(e);
+      }
+
+      recognition.onerror = () => {
+        console.log('onerror');
+        console.log(e);
+      }
+
+      recognition.onnomatch = (e) => {
+        console.log(onnomatch);
+        console.log(e);
+      }
+
+      recognition.onsoundstart = (e) => {
+        console.log('onsoundstart');
+        console.log(e);
+      }
+
+      recognition.onsoundend = (e) => {
+        console.log('onsoundend');
+        console.log(e);
+      }
+
+      recognition.onspeechstart = (e) => {
+        console.log('onspeechstart');
+        console.log(e);
+      }
+
+      recognition.onspeechend = (e) => {
+        console.log('onspeechend');
+        console.log(e);
+      }
+
+      recognition.onstart = (e) => {
+        console.log('onstart')
+        console.log(e);
+      }
+
+      recognition.onresult = (event) => {
+        console.log(event.results);
+      }
+    
+      recognition.start();
+    </script>
+  </body>
+</html>
