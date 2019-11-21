@@ -1,0 +1,148 @@
+<html>
+  <head>
+    <title>Generate downsampling .wav file from mic input</title>
+  </head>
+  <body>
+    <button onclick="onClickStartWAV();">Record</button>
+    <button onclick="onClickStopWAV();">Stop</button>
+    <a id="dl">Download</a>
+    <script>
+      var videoStream = undefined;
+      var audioData = [];
+      var bufferSize = 1024;
+      let audio_sample_rate = undefined;
+      var new_sample_rate = 16000;
+
+      function exportWAV(audioData) {
+        let encodeWAV = function (samples, sampleRate) {
+          let buffer = new ArrayBuffer(44 + samples.length * 2);
+          let view = new DataView(buffer);
+
+          let writeString = function (view, offset, string) {
+            for (let i = 0; i < string.length; i++) {
+              view.setUint8(offset + i, string.charCodeAt(i));
+            }
+          };
+
+          let floatTo16BitPCM = function (output, offset, input) {
+            for (let i = 0; i < input.length; i++ , offset += 2) {
+              let s = Math.max(-1, Math.min(1, input[i]));
+              output.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+            }
+          };
+
+          writeString(view, 0, 'RIFF');  // RIFF Header
+          view.setUint32(4, 32 + samples.length * 2, true); // File Size
+          writeString(view, 8, 'WAVE'); // WAVE Header
+          writeString(view, 12, 'fmt '); // fmt chunk
+          view.setUint32(16, 16, true); // bytes of fmt chunk
+          view.setUint16(20, 1, true); // format ID
+          view.setUint16(22, 1, true); // channels
+          view.setUint32(24, sampleRate, true); // sample rate
+          view.setUint32(28, sampleRate * 2, true); // velocity
+          view.setUint16(32, 2, true); // block size
+          view.setUint16(34, 16, true); // bit per sample
+          writeString(view, 36, 'data'); // data chunk
+          view.setUint32(40, samples.length * 2, true); // bytes of PCM data
+          floatTo16BitPCM(view, 44, samples); // PCM data
+
+          return view;
+        }
+        let mergeBuffers = function (data) {
+          let sampleLength = 0;
+          for (let i = 0; i < data.length; i++) {
+            sampleLength += data[i].length;
+          }
+          let samples = new Float32Array(sampleLength);
+          let sampleIdx = 0;
+          for (let i = 0; i < data.length; i++) {
+            for (let j = 0; j < data[i].length; j++) {
+              samples[sampleIdx] = data[i][j];
+              sampleIdx++;
+            }
+          }
+          return samples;
+        };
+
+        let dataview = encodeWAV(mergeBuffers(audioData), new_sample_rate);
+        return URL.createObjectURL(new Blob([dataview], { type: 'audio/wav' }));
+      };
+
+      function interpolateArray(data, fitCount) {
+        var linearInterpolate = function (before, after, atPoint) {
+          return before + (after - before) * atPoint;
+        };
+
+        var newData = new Array();
+        var springFactor = new Number((data.length - 1) / (fitCount - 1));
+        newData[0] = data[0]; // for new allocation
+        for ( var i = 1; i < fitCount - 1; i++) {
+          var tmp = i * springFactor;
+          var before = new Number(Math.floor(tmp)).toFixed();
+          var after = new Number(Math.ceil(tmp)).toFixed();
+          var atPoint = tmp - before;
+          newData[i] = linearInterpolate(data[before], data[after], atPoint);
+        }
+        newData[fitCount - 1] = data[data.length - 1]; // for new allocation
+        return newData;
+      };
+
+      // save audio data
+      const onAudioProcess = function (e) {
+        // audio input
+        var inputData = e.inputBuffer.getChannelData(0);
+        var ResampleData = interpolateArray(inputData, inputData.length * (new_sample_rate/audio_sample_rate)  );
+
+        bufferSize = inputData.length * (new_sample_rate / audio_sample_rate);
+
+        var bufferData = new Float32Array(bufferSize);
+        for (var i = 0; i < bufferSize; i++) {
+          bufferData[i] = ResampleData[i];
+        }
+        audioData.push(bufferData);
+      };
+
+      function handleAudioContext (stream) {
+        videoStream = stream;
+        var audioContext = new AudioContext();
+        audio_sample_rate = audioContext.sampleRate;
+        console.log('Audio source sampling rate:' + audio_sample_rate);
+        const scriptProcessor = audioContext.createScriptProcessor(bufferSize, 1, 1);
+        var mediastreamsource = audioContext.createMediaStreamSource(stream);
+        mediastreamsource.connect(scriptProcessor);
+        scriptProcessor.onaudioprocess = onAudioProcess;
+        scriptProcessor.connect(audioContext.destination);
+      }
+
+      function onClickStartWAV() {
+        audioData = []
+        navigator.mediaDevices.getUserMedia({
+          audio: true,
+          video: true
+        })
+        .then(handleAudioContext)
+        .catch((e) => {
+          console.log(e);
+        });
+      }
+
+      function onClickStopWAV() {
+        if (videoStream) {
+          videoStream.getVideoTracks().forEach((track) => {
+            track.stop();
+          });
+          videoStream.getAudioTracks().forEach((track) => {
+            track.stop();
+          });
+        }
+
+        var dlWav = document.querySelector("#dl");
+        dlWav.href = exportWAV(audioData);
+        dlWav.download = 'downsampling_test.wav';
+        dlWav.click();
+      };
+
+
+    </script>
+  </body>
+</html>
